@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Particle Fountain</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(0,255,255,0.3);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            user-select: none;
+            width: 220px;
+        }
+
+        .controls h2 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #f0f;
+            text-shadow: 0 0 10px #f0f;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 10px;
+            color: #ff0;
+            margin-bottom: 4px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #0ff;
+        }
+
+        button {
+            width: 100%;
+            padding: 6px;
+            background: transparent;
+            border: 1px solid #0ff;
+            color: #0ff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            margin-top: 5px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: rgba(0,255,255,0.1);
+            box-shadow: 0 0 10px rgba(0,255,255,0.3);
+        }
+
+        .value-display {
+            float: right;
+            color: #fff;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #0f0;
+            text-shadow: 0 0 8px #0f0;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,255,0,0.3);
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-size: 12px;
+            text-align: center;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+        <h2>⛲ NEON PARTICLE FOUNTAIN</h2>
+
+        <div class="control-group">
+            <label>Particles per Shot <span class="value-display" id="burstCountVal">15</span></label>
+            <input type="range" id="burstCount" min="1" max="50" value="15">
+        </div>
+
+        <div class="control-group">
+            <label>Launch Speed <span class="value-display" id="speedVal">12</span></label>
+            <input type="range" id="speed" min="5" max="25" value="12">
+        </div>
+
+        <div class="control-group">
+            <label>Spread Angle <span class="value-display" id="spreadVal">60°</span></label>
+            <input type="range" id="spread" min="10" max="120" value="60">
+        </div>
+
+        <div class="control-group">
+            <label>Gravity <span class="value-display" id="gravityVal">0.25</span></label>
+            <input type="range" id="gravity" min="0.05" max="1" step="0.05" value="0.25">
+        </div>
+
+        <div class="control-group">
+            <label>Bounce <span class="value-display" id="bounceVal">0.6</span></label>
+            <input type="range" id="bounce" min="0" max="0.95" step="0.05" value="0.6">
+        </div>
+
+        <div class="control-group">
+            <label>Wind <span class="value-display" id="windVal">0</span></label>
+            <input type="range" id="wind" min="-0.5" max="0.5" step="0.05" value="0">
+        </div>
+
+        <div class="control-group">
+            <label>Lifetime <span class="value-display" id="lifetimeVal">180</span></label>
+            <input type="range" id="lifetime" min="60" max="400" value="180">
+        </div>
+
+        <div class="control-group">
+            <label>Glow Intensity <span class="value-display" id="glowVal">12</span></label>
+            <input type="range" id="glow" min="0" max="30" value="12">
+        </div>
+
+        <div class="control-group">
+            <label>Color Mode</label>
+            <select id="colorMode" style="width:100%; background:#000; color:#0ff; border:1px solid #0ff; padding:4px; border-radius:4px;">
+                <option value="rainbow">Rainbow</option>
+                <option value="fire">Fire</option>
+                <option value="ice">Ice</option>
+                <option value="neon">Neon</option>
+                <option value="matrix">Matrix</option>
+            </select>
+        </div>
+
+        <button id="clearBtn">Clear All</button>
+        <button id="randomBtn">Random Burst</button>
+    </div>
+
+    <div class="stats">
+        <div>Particles: <span id="particleCount">0</span></div>
+        <div>FPS: <span id="fps">60</span></div>
+    </div>
+
+    <div class="instructions">
+        Click or drag to emit glowing particle streams • Adjust sliders to change fountain behavior • Each burst follows physics with gravity, bounce, wind
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Sliders
+        const burstCountSlider = document.getElementById('burstCount');
+        const speedSlider = document.getElementById('speed');
+        const spreadSlider = document.getElementById('spread');
+        const gravitySlider = document.getElementById('gravity');
+        const bounceSlider = document.getElementById('bounce');
+        const windSlider = document.getElementById('wind');
+        const lifetimeSlider = document.getElementById('lifetime');
+        const glowSlider = document.getElementById('glow');
+        const colorModeSelect = document.getElementById('colorMode');
+        const clearBtn = document.getElementById('clearBtn');
+        const randomBtn = document.getElementById('randomBtn');
+
+        let width, height;
+        let particles = [];
+        let isEmitting = false;
+        let mouse = { x: 0, y: 0 };
+        let lastTime = 0;
+        let frameCount = 0;
+        let lastFpsTime = 0;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor(x, y, vx, vy, hue, lifetime) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.hue = hue;
+                this.lifetime = lifetime;
+                this.age = 0;
+                this.size = 2 + Math.random() * 2;
+                this.dead = false;
+            }
+
+            update(gravity, bounce, wind) {
+                this.age++;
+                if (this.age >= this.lifetime) {
+                    this.dead = true;
+                    return;
+                }
+
+                this.vx += wind;
+                this.vy += gravity;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bottom bounce
+                if (this.y > height - 5) {
+                    this.y = height - 5;
+                    this.vy *= -bounce;
+                    this.vx *= 0.95; // friction on ground
+                }
+
+                // Side walls
+                if (this.x < 0) { this.x = 0; this.vx *= -bounce; }
+                if (this.x > width) { this.x = width; this.vx *= -bounce; }
+            }
+
+            draw(ctx, glow) {
+                const alpha = 1 - (this.age / this.lifetime);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 60%, ${alpha})`;
+                ctx.shadowBlur = glow;
+                ctx.shadowColor = `hsl(${this.hue}, 100%, 60%)`;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function getColorModeHue(mode, baseHue) {
+            switch (mode) {
+                case 'fire': return 10 + Math.random() * 40; // orange/yellow/red
+                case 'ice': return 180 + Math.random() * 60; // cyan/blue
+                case 'neon': return baseHue % 360;
+                case 'matrix': return 120 + Math.random() * 60; // greens
+                case 'rainbow': default: return Math.random() * 360;
+            }
+        }
+
+        function emitBurst(x, y) {
+            const count = parseInt(burstCountSlider.value);
+            const speed = parseInt(speedSlider.value);
+            const spread = parseInt(spreadSlider.value);
+            const lifetime = parseInt(lifetimeSlider.value);
+            const colorMode = colorModeSelect.value;
+            const baseHue = Date.now() / 10;
+
+            for (let i = 0; i < count; i++) {
+                const angleDeg = -90 + (Math.random() - 0.5) * spread; // upward cone
+                const angleRad = angleDeg * Math.PI / 180;
+                const velocity = speed * (0.7 + Math.random() * 0.6);
+                const vx = Math.cos(angleRad) * velocity;
+                const vy = Math.sin(angleRad) * velocity;
+                const hue = getColorModeHue(colorMode, baseHue);
+                particles.push(new Particle(x, y, vx, vy, hue, lifetime));
+            }
+        }
+
+        function animate(timestamp) {
+            const deltaTime = timestamp - lastTime || 16;
+            lastTime = timestamp;
+
+            frameCount++;
+            if (timestamp - lastFpsTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+                lastFpsTime = timestamp;
+            }
+
+            // Fade background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            const gravity = parseFloat(gravitySlider.value);
+            const bounce = parseFloat(bounceSlider.value);
+            const wind = parseFloat(windSlider.value);
+            const glow = parseInt(glowSlider.value);
+
+            // Continuous emit if mouse down
+            if (isEmitting) {
+                // Throttle emission to every ~50ms max to avoid too many particles
+                if (!this.lastEmit || timestamp - this.lastEmit > 50) {
+                    emitBurst(mouse.x, mouse.y);
+                    this.lastEmit = timestamp;
+                }
+            }
+
+            // Update and draw particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update(gravity, bounce, wind);
+                p.draw(ctx, glow);
+                if (p.dead) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Stats
+            document.getElementById('particleCount').textContent = particles.length;
+
+            requestAnimationFrame(animate);
+        }
+
+        // Interactions
+        canvas.addEventListener('mousedown', (e) => {
+            isEmitting = true;
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            emitBurst(mouse.x, mouse.y);
+            this.lastEmit = performance.now();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => { isEmitting = false; });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isEmitting = true;
+            const touch = e.touches[0];
+            mouse.x = touch.clientX;
+            mouse.y = touch.clientY;
+            emitBurst(mouse.x, mouse.y);
+            this.lastEmit = performance.now();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            mouse.x = touch.clientX;
+            mouse.y = touch.clientY;
+        });
+
+        canvas.addEventListener('touchend', () => { isEmitting = false; });
+
+        // UI
+        function updateDisplays() {
+            document.getElementById('burstCountVal').textContent = burstCountSlider.value;
+            document.getElementById('speedVal').textContent = speedSlider.value;
+            document.getElementById('spreadVal').textContent = spreadSlider.value + '°';
+            document.getElementById('gravityVal').textContent = gravitySlider.value;
+            document.getElementById('bounceVal').textContent = bounceSlider.value;
+            document.getElementById('windVal').textContent = windSlider.value;
+            document.getElementById('lifetimeVal').textContent = lifetimeSlider.value;
+            document.getElementById('glowVal').textContent = glowSlider.value;
+        }
+
+        [burstCountSlider, speedSlider, spreadSlider, gravitySlider, bounceSlider, windSlider, lifetimeSlider, glowSlider].forEach(s => {
+            s.addEventListener('input', updateDisplays);
+        });
+
+        clearBtn.addEventListener('click', () => { particles = []; });
+        randomBtn.addEventListener('click', () => {
+            burstCountSlider.value = Math.floor(5 + Math.random() * 45);
+            speedSlider.value = Math.floor(5 + Math.random() * 20);
+            spreadSlider.value = Math.floor(10 + Math.random() * 110);
+            gravitySlider.value = (0.05 + Math.random() * 0.95).toFixed(2);
+            bounceSlider.value = (Math.random() * 0.95).toFixed(2);
+            windSlider.value = (Math.random() * 1 - 0.5).toFixed(2);
+            lifetimeSlider.value = Math.floor(60 + Math.random() * 340);
+            const modes = ['rainbow','fire','ice','neon','matrix'];
+            colorModeSelect.value = modes[Math.floor(Math.random() * modes.length)];
+            updateDisplays();
+        });
+
+        updateDisplays();
+        animate(0);
+    </script>
+</body>
+</html>
